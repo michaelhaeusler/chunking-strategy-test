@@ -12,11 +12,10 @@ def parse_pdf(pdf_path: str):
     """
     try:
         import openparse
-        from openparse import processing
-        from openparse.processing import pipelines
+        from openparse.processing import SemanticIngestionPipeline
 
         # Create a semantic ingestion pipeline (lightweight)
-        pipeline = pipelines.SemanticIngestionPipeline(
+        pipeline = SemanticIngestionPipeline(
             min_tokens=32,
             max_tokens=2048,
         )

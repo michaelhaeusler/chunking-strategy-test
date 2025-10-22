@@ -1,0 +1,12 @@
+
+# Suggested packages (install in virtualenv)
+openparse
+unstructured
+pymupdf
+pdfminer.six
+langchain
+sentence-transformers
+faiss-cpu
+numpy
+pandas
+tqdm

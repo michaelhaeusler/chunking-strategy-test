@@ -10,3 +10,7 @@ faiss-cpu
 numpy
 pandas
 tqdm
+openparse
+layoutparser
+pdfminer.six
+pymupdf

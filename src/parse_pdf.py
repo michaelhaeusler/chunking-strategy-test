@@ -1,33 +1,59 @@
-
-"""parse_pdf.py
-Minimal PDF parsing helpers (skeleton). Replace or extend with Unstructured/Open-Parse/Docling.
+"""
+parse_pdf.py
+PDF parsing with Open-Parse (structure- and layout-aware).
+Falls back to PyMuPDF text extraction if Open-Parse is unavailable.
 """
 import os
 
-def parse_pdf_basic(pdf_path):
-    """Very small placeholder parser that attempts to extract text using PyMuPDF if available,
-    otherwise returns a fallback simple text element list. Replace with 'unstructured.partition' or Open-Parse in production.
-    Returns: list of elements where element = {type: 'text'|'table'|'image', 'text': str, 'page': int}
+def parse_pdf(pdf_path: str):
     """
-    elements = []
+    Parse a structured PDF using Open-Parse.
+    Returns: list[dict] elements = [{type, text, page, bbox, ...}]
+    """
+    try:
+        import openparse
+        from openparse import processing
+        from openparse.processing import pipelines
+
+        # Create a semantic ingestion pipeline (lightweight)
+        pipeline = pipelines.SemanticIngestionPipeline(
+            min_tokens=32,
+            max_tokens=2048,
+        )
+
+        parser = openparse.DocumentParser(processing_pipeline=pipeline)
+        doc = parser.parse(pdf_path)
+        elements = []
+        for node in doc.nodes:
+            elements.append({
+                "type": node.node_type or "text",
+                "text": node.text or "",
+                "page": getattr(node, "page_number", None),
+                "bbox": getattr(node, "bbox", None),
+                "metadata": {
+                    "block_type": node.block_type,
+                    "level": node.level,
+                    "id": node.id
+                }
+            })
+        print(f"[Open-Parse] Parsed {len(elements)} elements from {pdf_path}")
+        return elements
+    except ImportError:
+        print("[Warning] openparse not installed, falling back to PyMuPDF text extraction.")
+    except Exception as e:
+        print(f"[Open-Parse failed: {e}] Falling back to PyMuPDF text extraction.")
+
+    # ---- Fallback ----
     try:
         import fitz  # PyMuPDF
         doc = fitz.open(pdf_path)
+        elements = []
         for i, page in enumerate(doc):
             text = page.get_text("text")
-            elements.append({"type": "text", "text": text, "page": i+1})
-    except Exception as e:
-        # Fallback: read as plain text file (useful in this starter project)
-        if os.path.exists(pdf_path):
-            with open(pdf_path, 'r', encoding='utf-8', errors='ignore') as f:
-                text = f.read()
-            elements.append({"type": "text", "text": text, "page": 1})
-        else:
-            raise RuntimeError(f"PDF path not found: {pdf_path}") from e
-    return elements
-
-if __name__ == '__main__':
-    import sys
-    p = sys.argv[1] if len(sys.argv) > 1 else 'data/sample_policy.pdf'
-    elems = parse_pdf_basic(p)
-    print(f"Parsed {len(elems)} elements. Sample:\n", elems[0]['text'][:500])
+            elements.append({"type": "text", "text": text, "page": i + 1})
+        return elements
+    except Exception:
+        # last resort: read as plain text
+        with open(pdf_path, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        return [{"type": "text", "text": text, "page": 1}]
